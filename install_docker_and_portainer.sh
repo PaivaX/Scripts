@@ -12,24 +12,32 @@ echo \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 
-# Instalar a ultima versão do docker
+# Install last version of docker
 sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Verificar a versão
+# Check version
 docker -v
+echo
+echo -e "\e[32mDocker instalado com sucesso!\e[0m"
+echo
 
-# Instalar Docker Compose
+# Install Docker Compose
 wget https://github.com/docker/compose/releases/download/v2.2.2/docker-compose-linux-x86_64
 
 sudo cp docker-compose-linux-x86_64 /usr/local/bin/docker-compose
 
 sudo chmod +x /usr/local/bin/docker-compose
 
-# Verificar versão do docker-compose
+# Check version of docker-compose
 sudo docker-compose --version
+echo
+echo -e "\e[32mdocker-compose instalado com sucesso!\e[0m"
+echo
 
-# Criar volume para o portainer
+# Create volume for Portainer
 sudo docker volume create portainer_data
 
-# Criar o container do portainer
+# Create container of Portainer
 sudo docker run -d -p 8000:8000 -p 9000:9000 --name=portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer
+echo
+echo -e "\e[32mDocker e Portainer  instalados com sucesso! - By Rui Paiva\e[0m"
