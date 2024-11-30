@@ -1,2 +1,4 @@
 # Scripts
-chmod +x <nome_script>
+chmod +x <name_script>
+
+./<name_script>
