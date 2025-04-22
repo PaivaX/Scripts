@@ -1,68 +1,91 @@
 #!/bin/bash
 
-# Verifica se o script está sendo executado como root
+# Autor: Rui Paiva - www.rpx.pt
+# Script para instalar Docker, Docker Compose e Portainer
+# Script to install Docker, Docker Compose, and Portainer
+
+# Cores para saída formatada / Colors for formatted output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[1;34m'
+NC='\033[0m' # Sem cor / No color
+
+# Armazena os status de cada etapa / Store each step's status
+declare -A STATUS
+
+# Cabeçalho / Header
+print_title() {
+  echo -e "${BLUE}"
+  echo "==============================================="
+  echo "     INSTALADOR DOCKER + PORTAINER - RPX       "
+  echo "           by Rui Paiva - www.rpx.pt           "
+  echo "==============================================="
+  echo -e "${NC}"
+}
+
+# Verifica se o script está a ser executado como root
 # Check if the script is being run as root
-if [ "$(id -u)" -ne 0 ]; then
-  SUDO="sudo"
-else
-  SUDO=""
-fi
+check_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    SUDO="sudo"
+  else
+    SUDO=""
+  fi
+}
 
-# Atualiza o sistema e instala dependências
-# Update the system and install dependencies
-$SUDO apt-get update
-$SUDO apt-get install -y ca-certificates curl
+# Executa e monitora um comando com descrição
+# Run and track a command with a description
+run_step() {
+  local description="$1"
+  local command="$2"
+  echo -ne "➤ ${description}... "
+  eval "$command" &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ OK${NC}"
+    STATUS["$description"]="✅"
+  else
+    echo -e "${RED}❌ ERRO${NC}"
+    STATUS["$description"]="❌"
+  fi
+}
 
-# Configura o diretório para armazenar a chave GPG
-# Set up the directory to store the GPG key
-$SUDO install -m 0755 -d /etc/apt/keyrings
+# Mostra resumo final dos resultados
+# Print final summary of results
+print_summary() {
+  echo -e "\n${BLUE}===== RESUMO DA INSTALAÇÃO / INSTALL SUMMARY =====${NC}"
+  for step in "${!STATUS[@]}"; do
+    printf "%-50s %s\n" "$step" "${STATUS[$step]}"
+  done
+  echo -e "\n${GREEN}Script finalizado com sucesso. Visite ${BLUE}www.rpx.pt${NC} para mais soluções!\n"
+}
 
-# Baixa a chave GPG oficial do Docker
-# Download the official Docker GPG key
-$SUDO curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-$SUDO chmod a+r /etc/apt/keyrings/docker.asc
+### Execução principal / Main execution ###
+print_title
+check_root
 
-# Adiciona o repositório do Docker ao sources.list
-# Add Docker repository to sources.list
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  $SUDO tee /etc/apt/sources.list.d/docker.list > /dev/null
+run_step "Atualizando pacotes do sistema / Updating system packages" "$SUDO apt-get update"
+run_step "Instalando dependências / Installing dependencies (ca-certificates, curl)" "$SUDO apt-get install -y ca-certificates curl"
 
-# Atualiza a lista de pacotes
-# Update the package list
-$SUDO apt-get update
+run_step "Criando diretório para chave GPG / Creating directory for GPG key" "$SUDO install -m 0755 -d /etc/apt/keyrings"
+run_step "Baixando chave GPG do Docker / Downloading Docker GPG key" "$SUDO curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc"
+run_step "Ajustando permissões da chave / Setting key permissions" "$SUDO chmod a+r /etc/apt/keyrings/docker.asc"
 
-# Instala o Docker e seus componentes
-# Install Docker and its components
-$SUDO apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+run_step "Adicionando repositório do Docker / Adding Docker repository" "echo \
+  'deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable' | \
+  $SUDO tee /etc/apt/sources.list.d/docker.list > /dev/null"
 
-# Verifica a versão do Docker
-# Check Docker version
-docker -v
-echo
-echo -e "\e[32mDocker instalado com sucesso!\e[0m" # Docker successfully installed!
-echo
+run_step "Atualizando lista de pacotes / Updating package list again" "$SUDO apt-get update"
+run_step "Instalando Docker e componentes / Installing Docker and components" "$SUDO apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
 
-# Instala o Docker Compose
-# Install Docker Compose
-wget https://github.com/docker/compose/releases/download/v2.2.2/docker-compose-linux-x86_64
-$SUDO cp docker-compose-linux-x86_64 /usr/local/bin/docker-compose
-$SUDO chmod +x /usr/local/bin/docker-compose
+run_step "Verificando versão do Docker / Checking Docker version" "docker -v"
 
-# Verifica a versão do Docker Compose
-# Check Docker Compose version
-docker-compose --version
-echo
-echo -e "\e[32mDocker Compose instalado com sucesso!\e[0m" # Docker Compose successfully installed!
-echo
+run_step "Baixando Docker Compose / Downloading Docker Compose" "wget -q https://github.com/docker/compose/releases/download/v2.2.2/docker-compose-linux-x86_64"
+run_step "Movendo Docker Compose para /usr/local/bin / Moving Docker Compose" "$SUDO cp docker-compose-linux-x86_64 /usr/local/bin/docker-compose"
+run_step "Tornando Docker Compose executável / Making Docker Compose executable" "$SUDO chmod +x /usr/local/bin/docker-compose"
+run_step "Verificando versão do Docker Compose / Checking Docker Compose version" "docker-compose --version"
 
-# Cria volume para Portainer
-# Create volume for Portainer
-$SUDO docker volume create portainer_data
+run_step "Criando volume para Portainer / Creating Portainer volume" "$SUDO docker volume create portainer_data"
+run_step "Criando container do Portainer / Creating Portainer container" "$SUDO docker run -d -p 8000:8000 -p 9000:9000 --name=portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest"
 
-# Cria o container do Portainer
-# Create the Portainer container
-$SUDO docker run -d -p 8000:8000 -p 9000:9000 --name=portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
-echo
-echo -e "\e[32mDocker e Portainer instalados com sucesso! - By Rui Paiva\e[0m" # Docker and Portainer successfully installed!
+print_summary
